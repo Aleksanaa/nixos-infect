@@ -3,12 +3,19 @@
 # More info at: https://github.com/elitak/nixos-infect
 
 NODE_HOSTNAME=
+EXIST_CONFIG=
 
 set -e -o pipefail
 
 makeConf() {
   # Skip everything if main config already present
-  [[ -e /etc/nixos/configuration.nix ]] && return 0
+  if [[ -e /etc/nixos/configuration.nix ]]; then
+    if [ -n "$EXIST_CONFIG" ]; then
+      return 0
+    else
+      rm -rf /etc/nixos
+    fi
+  fi
 
   # Lightsail config is not like the others
   if [ "$PROVIDER" = "lightsail" ]; then
