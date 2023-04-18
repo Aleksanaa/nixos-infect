@@ -325,6 +325,12 @@ checkEnv() {
   chmod 600 /etc/ssh/ssh_host_*_key
 }
 
+genNewHostKey() {
+  [[ -d /etc/newkey ]] && rm -r /etc/newkey
+  mkdir /etc/newkey
+  ssh-keygen -q -N "" -t ed25519 -f /etc/newkey/ssh_host_ed25519_key
+}
+
 openConf() {
   cols=$(tput cols 2>/dev/null || echo 60)
   printf '%*s\n' "$cols" '' | tr ' ' '-'
@@ -333,7 +339,7 @@ openConf() {
 }
 
 checkConf() {
-  echo -e "\nGenerated.\n1 => configuration.nix\n2 => hardware-configuration.nix\n3 => networking.nix\n[Y/y] => continue to infect"
+  echo -e "\nGenerated.\n1 => configuration.nix\n2 => hardware-configuration.nix\n3 => networking.nix\n4 => openssh host pubkey\n[Y/y] => continue to infect"
   while : ; do
   read -p "CHOICE: " choice
   case $choice in
@@ -349,6 +355,9 @@ checkConf() {
 	else
 	  echo "No networking configs generated."
 	fi
+	;;
+    4)
+	openConf /etc/newkey/ssh_host_ed25519_key.pub
 	;;
     [yY]|[yY][eE][sS])
       	break
@@ -412,6 +421,10 @@ infect() {
   echo root/.nix-defexpr/channels >> /etc/NIXOS_LUSTRATE
   (cd / && ls etc/ssh/ssh_host_*_key* || true) >> /etc/NIXOS_LUSTRATE
 
+  # move the keys to nix persistent dir
+  mkdir -p /nix/persist/etc/ssh
+  mv /etc/newkey/* /nix/persist/etc/ssh/
+
   rm -rf /boot.bak
   isEFI && umount "$esp"
 
@@ -437,6 +450,7 @@ if [[ -z "$NO_SWAP" ]]; then
     makeSwap # smallest (512MB) droplet needs extra memory!
 fi
 makeConf
+genNewHostKey
 [[ -n "${CHECK_CONFIG}" ]] && checkConf
 infect
 if [[ -z "$NO_SWAP" ]]; then
