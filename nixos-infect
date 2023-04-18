@@ -2,8 +2,10 @@
 
 # More info at: https://github.com/elitak/nixos-infect
 
-NODE_HOSTNAME=
 EXIST_CONFIG=
+NODE_HOSTNAME=
+NODE_AUTHORIZED_KEYS="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJwKH84MRzCnuzuVkpt3UiJSioFArJ89kkwAaUuV8EHP servers"
+NODE_COLMENA_KEYS="sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAICM/ofQtz+abCHSmJOUoz9ALI7GEbUD6ke7AfpfjjbjeAAAABHNzaDo= aleksana@Aleksana-Laptop"
 
 set -e -o pipefail
 
@@ -27,32 +29,41 @@ makeConf() {
   mkdir -p /etc/nixos
   # Prevent grep for sending error code 1 (and halting execution) when no lines are selected : https://www.unix.com/man-page/posix/1P/grep
   local IFS=$'\n'
-  for trypath in /root/.ssh/authorized_keys /home/$SUDO_USER/.ssh/authorized_keys $HOME/.ssh/authorized_keys; do
-      [[ -r "$trypath" ]] \
-      && keys=$(sed -E 's/^.*((ssh|ecdsa)-[^[:space:]]+)[[:space:]]+([^[:space:]]+)([[:space:]]*.*)$/\1 \3\4/' "$trypath") \
-      && break
-  done
   local network_import=""
 
   [[ -z "$NODE_HOSTNAME" ]] && NODE_HOSTNAME="$(hostname -s)"
 
   [[ -n "$doNetConf" ]] && network_import="./networking.nix # generated at runtime by nixos-infect"
+
+  [[ -n "${NODE_COLMENA_KEYS}" ]]; colmena=$(cat << EOF
+  users.users.colmena = {
+    isSystemUser = true;
+    group = "colmena";
+    shell = pkgs.bash;
+    openssh.authorizedKeys.keys = [ "${NODE_COLMENA_KEYS}" ];
+  };
+  users.groups.colmena = {};
+  security.doas.enable = true;
+  security.doas.extraRules = [{ users = [ "colmena" ]; noPass = true; }];
+  nix.settings.trusted-users = [ "colmena" ];
+EOF
+)
+
   cat > /etc/nixos/configuration.nix << EOF
-{ ... }: {
+{ pkgs, ... }: {
   imports = [
     ./hardware-configuration.nix
     $network_import
     $NIXOS_IMPORT
   ];
 
+  ${colmena}
   boot.cleanTmpDir = true;
   zramSwap.enable = ${zramswap};
   networking.hostName = "${NODE_HOSTNAME}";
   networking.domain = "$(hostname -d)";
   services.openssh.enable = true;
-  users.users.root.openssh.authorizedKeys.keys = [$(while read -r line; do echo -n "
-    \"$line\" "; done <<< "$keys")
-  ];
+  users.users.root.openssh.authorizedKeys.keys = [ "${NODE_AUTHORIZED_KEYS}" ];
 }
 EOF
 
