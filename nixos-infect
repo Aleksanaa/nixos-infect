@@ -2,6 +2,8 @@
 
 # More info at: https://github.com/elitak/nixos-infect
 
+NODE_HOSTNAME=
+
 set -e -o pipefail
 
 makeConf() {
@@ -25,6 +27,8 @@ makeConf() {
   done
   local network_import=""
 
+  [[ -z "$NODE_HOSTNAME" ]] && NODE_HOSTNAME="$(hostname -s)"
+
   [[ -n "$doNetConf" ]] && network_import="./networking.nix # generated at runtime by nixos-infect"
   cat > /etc/nixos/configuration.nix << EOF
 { ... }: {
@@ -36,7 +40,7 @@ makeConf() {
 
   boot.cleanTmpDir = true;
   zramSwap.enable = ${zramswap};
-  networking.hostName = "$(hostname -s)";
+  networking.hostName = "${NODE_HOSTNAME}";
   networking.domain = "$(hostname -d)";
   services.openssh.enable = true;
   users.users.root.openssh.authorizedKeys.keys = [$(while read -r line; do echo -n "
