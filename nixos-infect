@@ -35,7 +35,7 @@ makeConf() {
 
   [[ -n "$doNetConf" ]] && network_import="./networking.nix # generated at runtime by nixos-infect"
 
-  [[ -n "${NODE_COLMENA_KEYS}" ]]; colmena=$(cat << EOF
+  [[ -n "${NODE_COLMENA_KEYS}" ]] && colmena=$(cat << EOF
   users.users.colmena = {
     isSystemUser = true;
     group = "colmena";
@@ -325,6 +325,9 @@ checkEnv() {
 }
 
 infect() {
+  # force unmount tmpfs to avoid later ram explode
+  (mount | grep /tmp) && umount -f -l /tmp
+
   # Add nix build users
   # FIXME run only if necessary, rather than defaulting true
   groupadd nixbld -g 30000 || true
