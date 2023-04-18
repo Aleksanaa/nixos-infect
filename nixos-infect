@@ -333,7 +333,7 @@ openConf() {
 }
 
 checkConf() {
-  echo -e "\nGenerated.\n1 => configuration.nix\n2 => hardware-configuration.nix\n3 => networking.nix"
+  echo -e "\nGenerated.\n1 => configuration.nix\n2 => hardware-configuration.nix\n3 => networking.nix\n[Y/y] => continue to infect"
   while : ; do
   read -p "CHOICE: " choice
   case $choice in
@@ -351,7 +351,7 @@ checkConf() {
 	fi
 	;;
     [yY]|[yY][eE][sS])
-      	exit 0
+      	break
       	;;
     *)
 	exit 1
